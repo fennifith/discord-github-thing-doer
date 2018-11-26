@@ -67,7 +67,7 @@ async function linkRepo(message, repo, category) {
 	let webhook;
 	if (webhooks.exists(w => w.name === "GitHub Repo"))
 		webhook = webhooks.find(w => w.name === "GitHub Repo");
-	else webhook = channel.createWebhook("GitHub Repo", "https://jfenn.me/images/ic/git.png");
+	else webhook = await channel.createWebhook("GitHub Repo", "https://jfenn.me/images/ic/git.png");
 					
 	_request('POST', "https://api.github.com/repos/" + repo.full_name + "/hooks", {
 		headers: { 
