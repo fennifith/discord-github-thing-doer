@@ -9,17 +9,15 @@ const _client = new _discord.Client();
 
 const _token = _args.g;
 
-const _githubUsers = {};
-const _githubUsersPath = _path.join(process.env.HOME, ".config/discord-github-thing-doer/users.csv");
+var _githubUsers = {};
+var _githubRepos = {};
+const _githubUsersPath = _path.join(process.env.HOME, ".config/discord-github-thing-doer/users.json");
+const _githubReposPath = _path.join(process.env.HOME, ".config/discord-github-thing-doer/repos.json");
 
 (() => {
-	if (_fs.existsSync(_githubUsersPath)) {
-		let file = _fs.readFileSync(_githubUsersPath, "utf8");
-		let users = file.split("\n");
-		for (let i = 0; i < users.length; i++) {
-			let parts = users[i].split(",");
-			_githubUsers[parts[1]] = parts[0];
-		}
+	if (_fs.existsSync(_githubUsersPath) && _fs.existsSync(_githubReposPath)) {
+		_githubUsers = JSON.parse(_fs.readFileSync(_githubUsersPath, "utf8"));
+		_githubRepos = JSON.parse(_fs.readFileSync(_githubReposPath, "utf8"));
 	}
 })();
 
@@ -34,12 +32,21 @@ async function writeGithubUsers() {
 			_fs.mkdirSync(resolved);
 	}
 
-	let file = "";
-	for (let login in _githubUsers) {
-		file += _githubUsers[login] + "," + login + "\n";
+	_fs.writeFileSync(_path.resolve(_githubUsersPath), JSON.stringify(_githubUsers));
+}
+
+async function writeGithubRepos() {
+	let paths = _githubReposPath.split("/");
+	let path = [];
+	for (let i = 0; i < paths.length - 1; i++) {
+		path.push(paths[i]);
+
+		let resolved = _path.resolve(path.join("/"));
+		if (!_fs.existsSync(resolved))
+			_fs.mkdirSync(resolved);
 	}
 
-	_fs.writeFileSync(_path.resolve(_githubUsersPath), file);
+	_fs.writeFileSync(_path.resolve(_githubReposPath), JSON.stringify(_githubRepos));
 }
 
 function isValidGithubString(str) {
@@ -55,11 +62,17 @@ async function linkRepo(message, repo, category) {
 		channel = message.guild.channels.find(c => c.name === name);
 	} else {
 		channel = await message.guild.createChannel(name, "text");
-		await message.channel.send("New project: " + repo.full_name + " -> <#" + channel.id + ">");
+		await message.channel.send("New project: <https://github.com/" + repo.full_name + "> -> <#" + channel.id + ">");
 	}
 
-	if (category)
-		await channel.setParent(category);
+	_githubRepos[channel.id] = repo.full_name;
+	writeGithubRepos();
+
+	if (category) {
+		await channel.setParent(category).catch(function(e) {
+			console.log(e);
+		});
+	}
 						
 	await channel.setTopic(repo.description);
 	
@@ -141,7 +154,7 @@ _client.on('message', async function(message) {
 					}
 				})).getBody('utf8')), categoryChannel);
 			} else {
-				await message.channel.send("Syncing repositories with https://github.com/" + messageParts[2]);
+				await message.channel.send("Syncing repositories with <https://github.com/" + messageParts[2] + ">...");
 			
 				let repos = JSON.parse((await _request('GET', "https://api.github.com/users/" + messageParts[2] + "/repos?per_page=10000", {
 					headers: { 
@@ -180,7 +193,7 @@ _client.on('message', async function(message) {
 					"Authorization": _token ? "token " + _token : null
 				}
 			}).catch(async function(err) {
-				await message.channel.send("I can't find that username on GitHub. That or their servers are down. Check https://status.github.com/ maybe?");
+				await message.channel.send("I can't find that username on GitHub. That or their servers are down. Check <https://status.github.com/> maybe?");
 			})).getBody('utf8'));
 
 			let gistPhrase = "Discord authentication (server: " + message.guild.name + ")";
@@ -199,8 +212,8 @@ _client.on('message', async function(message) {
 					if (file.includes(githubPhrase.toLowerCase()) && file.includes(discordPhrase.toLowerCase())) {
 						if (_githubUsers[messageParts[2]])
 							await message.channel.send("<@" + message.member.id + "> has replaced <@" + _githubUsers[messageParts[2]] + "> as the "
-									+ "owner of https://github.com/" + messageParts[2]);
-						else await message.channel.send("<@" + message.member.id + "> is authenticated as https://github.com/" + messageParts[2]);
+									+ "owner of <https://github.com/" + messageParts[2] + ">.");
+						else await message.channel.send("<@" + message.member.id + "> is authenticated as <https://github.com/" + messageParts[2] + ">.");
 					
 						_githubUsers[messageParts[2]] = message.member.id;
 						writeGithubUsers();
@@ -223,7 +236,31 @@ _client.on('message', async function(message) {
 					+ "  * " + discordPhrase + ".\n"
 					+ "```\nthen run this command again.");
 		} else if (messageParts[1] == "ls") {
+			if (!_githubRepos[message.channel.id]) {
+				message.channel.send("There doesn't seem to be a repository linked to this channel. Type `!github help` to see the full list of "
+						+ "available commands.");
+				return;
+			}
+
+			let repo = _githubRepos[message.channel.id];
+			console.log("Command issued from " + repo);
+		
 			if (messageParts[2] == "contributors") {
+				let contributors = JSON.parse((await _request('GET', "https://api.github.com/repos/" + repo + "/contributors", {
+					headers: { 
+						"User-Agent": "fennifith",
+						"Authorization": _token ? "token " + _token : null
+					}
+				})).getBody('utf8'));
+
+				let text = "Contributors to " + repo + ":\n";
+				for (let i in contributors) {
+					if (_githubUsers[contributors[i].login])
+						text += "- <@" + _githubUsers[contributors[i].login] + "> <" + contributors[i].html_url + ">\n";
+					else text += "- @" + contributors[i].login + " <" + contributors[i].html_url + "> (Not authenticated)\n";
+				}
+
+				await message.channel.send(text);
 				return;
 			} else if (messageParts[2] == "collaborators") {
 				return;
