@@ -50,7 +50,7 @@ async function writeGithubRepos() {
 }
 
 function isValidGithubString(str) {
-	return (/^[A-Za-z\-_]+$/g).test(str);
+	return (/^[0-9A-Za-z\-_]+$/g).test(str);
 }
 
 async function linkRepo(message, repo, category) {
@@ -183,7 +183,7 @@ _client.on('message', async function(message) {
 
 			messageParts[2] = messageParts[2].toLowerCase();
 			if (_githubUsers[messageParts[2]] == message.member.id) {
-				await message.channel.send("<@" + message.member.id + ">, you are already authenticated as https://github.com/" + messageParts[2]);
+				await message.channel.send("<@" + message.member.id + ">, you are already authenticated as <https://github.com/" + messageParts[2] + ">.");
 				return;
 			}
 
