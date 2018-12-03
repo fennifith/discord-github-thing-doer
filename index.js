@@ -62,7 +62,7 @@ async function linkRepo(message, repo, category) {
 		channel = message.guild.channels.find(c => c.name === name);
 	} else {
 		channel = await message.guild.createChannel(name, "text");
-		await message.channel.send("New project: <https://github.com/" + repo.full_name + "> -> ${channel}");
+		await message.channel.send("New project: <https://github.com/" + repo.full_name + "> -> <#" + channel.id + ">");
 	}
 
 	_githubRepos[channel.id] = repo.full_name;
@@ -118,7 +118,7 @@ _client.on('ready', () => {
 _client.on('guildMemberAdd', async function(member) {
 	const channel = member.guild.channels.find(c => c.name == "github-auth");
 	if (channel) {
-		await channel.send("Welcome to the server, ${member}! If you are contributing to one of these projects and/or would "
+		await channel.send("Welcome to the server, <@" + member.id + ">! If you are contributing to one of these projects and/or would "
 				+ "like to authenticate your GitHub account, respond with `!github auth <your github username>` in this channel. "
 				+ "You can also type `!github help` to see all of the other things I can do.");
 	}
@@ -183,7 +183,7 @@ _client.on('message', async function(message) {
 
 			messageParts[2] = messageParts[2].toLowerCase();
 			if (_githubUsers[messageParts[2]] == message.member.id) {
-				await message.channel.send("${message.member}, you are already authenticated as <https://github.com/" + messageParts[2] + ">.");
+				await message.channel.send("<@" + message.member.id + ">, you are already authenticated as <https://github.com/" + messageParts[2] + ">.");
 				return;
 			}
 
@@ -200,7 +200,7 @@ _client.on('message', async function(message) {
 			let githubPhrase = "I am " + messageParts[2] + " on GitHub";
 			let discordPhrase = "I am " + message.member.user.username + " (" + message.member.id + ") on Discord";
 
-			for (let i in gists) {
+			for (let i = 0; i < gists.length; i++) {
 				if (gists[i].description.toLowerCase().includes(gistPhrase.toLowerCase())) {
 					let file = (await _request('GET', gists[i].files[Object.keys(gists[i].files)[0]].raw_url, {
 						headers: { 
@@ -211,9 +211,9 @@ _client.on('message', async function(message) {
 
 					if (file.includes(githubPhrase.toLowerCase()) && file.includes(discordPhrase.toLowerCase())) {
 						if (_githubUsers[messageParts[2]])
-							await message.channel.send("${message.member} has replaced <@" + _githubUsers[messageParts[2]] + "> as the "
+							await message.channel.send("<@" + message.member.id + "> has replaced <@" + _githubUsers[messageParts[2]] + "> as the "
 									+ "owner of <https://github.com/" + messageParts[2] + ">.");
-						else await message.channel.send("${message.member} is authenticated as <https://github.com/" + messageParts[2] + ">.");
+						else await message.channel.send("<@" + message.member.id + "> is authenticated as <https://github.com/" + messageParts[2] + ">.");
 					
 						_githubUsers[messageParts[2]] = message.member.id;
 						writeGithubUsers();
@@ -227,7 +227,7 @@ _client.on('message', async function(message) {
 				}
 			}
 
-			message.channel.send("${message.member} I couldn't find a gist anywhere with your information. To verify your GitHub account, "
+			message.channel.send("<@" + message.member.id + "> I couldn't find a gist anywhere with your information. To verify your GitHub account, "
 					+ "please create a public gist (https://gist.github.com/) with the description `" + gistPhrase + "` and file name `README.md`, "
 					+ "and copy the following content into the file:\n```\n"
 					+ "### " + gistPhrase + "\n\n"
