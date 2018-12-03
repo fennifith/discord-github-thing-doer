@@ -253,14 +253,35 @@ _client.on('message', async function(message) {
 					}
 				})).getBody('utf8'));
 
-				let text = "Contributors to " + repo + ":\n";
+				let fields = [];
 				for (let i in contributors) {
-					if (_githubUsers[contributors[i].login])
-						text += "- <@" + _githubUsers[contributors[i].login] + "> <" + contributors[i].html_url + ">\n";
-					else text += "- @" + contributors[i].login + " <" + contributors[i].html_url + "> (Not authenticated)\n";
+					let contributor = JSON.parse((await _request('GET', "https://api.github.com/users/" + contributors[i].login, {
+						headers: { 
+							"User-Agent": "fennifith",
+							"Authorization": _token ? "token " + _token : null
+						}
+					})).getBody('utf8'));
+
+					let text = " | [GitHub](" + contributor.html_url + ")";
+					if (contributor.blog && contributor.blog.length > 0)
+						text += " | [Website](" + contributor.blog + ")";
+				
+					if (_githubUsers[contributor.login])
+						text = "<@" + _githubUsers[contributor.login] + ">" + text;
+					else text = "@" + contributor.login + " (Not authenticated)" + text;
+				
+					fields.push({
+						name: contributor.name && contributor.name.length > 0 ? contributor.name : contributor.login,
+						value: text
+					});
 				}
 
-				await message.channel.send(text);
+				await message.channel.send({ embed: {
+					title: "Contributors to " + repo,
+					url: "https://github.com/" + repo + "/graphs/contributors",
+					fields: fields,
+					timestamp: new Date()
+				}});
 				return;
 			} else if (messageParts[2] == "collaborators") {
 				return;
