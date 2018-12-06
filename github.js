@@ -6,6 +6,8 @@ const _request = require('then-request');
 const _discord = require('discord.js');
 const _client = new _discord.Client();
 
+var _guild;
+
 function isValidGithubString(str) {
 	return (/^[0-9A-Za-z\-_]+$/g).test(str);
 }
@@ -15,10 +17,10 @@ async function linkRepo(params, message, repo, category) {
 	console.log("Linking " + repo.full_name + " -> #" + name);
 				
 	let channel;
-	if (message.guild.channels.exists(c => c.name === name)) {
-		channel = message.guild.channels.find(c => c.name === name);
+	if (_guild.channels.exists(c => c.name === name)) {
+		channel = _guild.channels.find(c => c.name === name);
 	} else {
-		channel = await message.guild.createChannel(name, "text");
+		channel = await _guild.createChannel(name, "text");
 		await message.channel.send("New project: <https://github.com/" + repo.full_name + "> -> <#" + channel.id + ">");
 	}
 
@@ -71,6 +73,8 @@ async function linkRepo(params, message, repo, category) {
 }
 
 async function authUser(params, message, userLogin) {
+	console.log(message.author.username + " has been authed as " + userLogin);
+
 	if (params.githubUsers[userLogin])
 		await message.channel.send("<@" + message.author.id + "> has replaced <@" + params.githubUsers[userLogin] + "> as the "
 				+ "owner of <https://github.com/" + userLogin + ">.");
@@ -81,9 +85,11 @@ async function authUser(params, message, userLogin) {
 		params.writeGithubUsers(params.githubUsers);
 		//TODO: warn against undefined method
 
-	let authRole = message.guild.roles.find(r => r.name == "github-auth");
-	if (authRole)
-		await message.author.addRole(authRole.id);
+	let authRole = _guild.roles.find(r => r.name == "github-auth");
+	let authMember = _guild.members.find(m => m.user.id == message.author.id);
+	if (authRole && authMember)
+		await authMember.addRole(authRole.id).catch(console.error);
+	else await message.channel.send("I was unable to verify that you are a member of the server this bot is from. @ the server mods if this continues to be an issue.");
 }
 
 /**
@@ -115,7 +121,15 @@ function start(params) {
 	});
 
 	_client.on('message', async function(message) {
+		if (!_guild)
+			_guild = message.guild; // the bot can only ever be in one server at a time, so this is okay
+	
 		if (message.content.startsWith("!github ")) {
+			if (!_guild && message.channel.type == "dm") {
+				await message.channel.send("Wow, you sure caught me at a bad time. I'm a little busy right now, maybe you could try again later?");
+				return;
+			}
+		
 			let messageParts = message.content.split(" ");
 
 			if (messageParts[1] === "sync") { // synchronize project channels + webhooks with a user's github repository
@@ -217,6 +231,15 @@ function start(params) {
 							+ "  * " + discordPhrase + ".\n"
 							+ "```\nthen run this command again.");
 				} else {
+					if (message.channel.type != "dm") {
+						await message.channel.send("Please send me this command as a PM, as it contains instructions that should be kept private. You "
+								+ "can send a PM by clicking on my profile image and typing in the message box that appears on desktop, or by pressing "
+								+ "and holding on this message, selecting 'Profile' in the popup, and pressing the 'message' button in the bottom right "
+								+ "on mobile.");
+
+						return;
+					}
+				
 					if (messageParts[2]) {
 						let user = await _request('GET', "https://api.github.com/user", {
 							headers: {
