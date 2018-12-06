@@ -38,6 +38,7 @@ async function writeGithubRepos(repos) {
 
 _githubBot.start({
 	token: _args.g,
+	client: _args.c,
 	githubUsers: _fs.existsSync(_githubUsersPath) ? JSON.parse(_fs.readFileSync(_githubUsersPath, "utf8")) : {},
 	githubRepos: _fs.existsSync(_githubReposPath) ? JSON.parse(_fs.readFileSync(_githubReposPath, "utf8")) : {},
 	writeGithubUsers: writeGithubUsers,
