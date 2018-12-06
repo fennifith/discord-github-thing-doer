@@ -122,11 +122,11 @@ function start(params) {
 
 	_client.on('message', async function(message) {
 		if (!_guild)
-			_guild = message.guild; // the bot can only ever be in one server at a time, so this is okay
+			_guild = message.guild; // the bot can only ever be in one server at a time, so this is probably okay
 	
 		if (message.content.startsWith("!github ")) {
 			if (!_guild && message.channel.type == "dm") {
-				await message.channel.send("Wow, you sure caught me at a bad time. I'm a little busy right now, maybe you could try again later?");
+				await message.channel.send("Wow, you sure caught me at a bad time. I'm a little busy right now, maybe you could try again later?"); // wow rude
 				return;
 			}
 		
@@ -318,28 +318,36 @@ function start(params) {
 				await message.channel.send("Invalid syntax; the format is `!github ls <attribute>`.\n"
 						+ "Valid attributes are \"contributors\", \"collaborators\", or \"issues\".")
 			} else { //  display help message
-				message.channel.send("GitHub Thing Doer:\n"
-					+ "This bot is written and maintained by James Fenn (@fennifith). Commands are as follows:\n"
-					+ "```\n"
-					+ "Usage: !github [command]\n\n"
-					+ "Commands:\n"
-					+ "sync <user/repo> [category]     Creates channels under [category], the\n"
-					+ "                                first category with the name \"projects\",\n"
-					+ "                                or uncategorized (prioritized in that order)\n"
-					+ "                                linked to the specified user's GitHub\n"
-					+ "                                repos (or the specified repo) via webhooks.\n"
-					+ "auth                            Verifies a user's GitHub account and assigns\n"
-					+ "                                the \"github-auth\" and \"contributor\" roles\n"
-					+ "                                accordingly.\n"
-					+ "auth <username> gist            Verifies a user's github account and does the\n"
-					+ "                                same as the 'auth' command, but verifies their\n"
-					+ "                                account through the creation of a gist."
-					+ "ls <attribute>                  Lists attributes of the repository that the\n"
-					+ "                                current channel is linked to, including\n"
-					+ "                                \"contributors\", \"collaborators\", or\n"
-					+ "                                \"issues\".\n"
-					+ "help                            Displays this beautiful message.\n"
-					+ "```");
+				await message.channel.send({ embed: {
+					title: "GitHub Thing Doer Commands",
+					url: "https://jfenn.me/projects/discord-github-thing-doer",
+					fields: [
+						{
+							name: "!github sync <user/repo> [category]",
+							value: "Creates channels under [category], the first category with the name 'projects', or"
+									+ "uncategorized (prioritized in that order) linked to the specified user's GitHub"
+									+ "repos (or to the specified repo) via webhooks."
+						},
+						{
+							name: "!github auth [token]",
+							value: "Verifies a user's GitHub account and assigns the 'github-auth' role accordingly."
+						},
+						{
+							name: "!github auth <username> gist",
+							value: "Verifies a user's GitHub account and does the same as the normal 'auth' command, "
+									+ "but verifies their account through the creation of a gist instead of using GitHub's "
+									+ "OAuth APIs."
+						},
+						{
+							name: "!github ls contributors",
+							value: "Lists the contributors to the repository that the current channel is linked to, if any."
+						},
+						{
+							name: "!github help",
+							value: "Displays this beautiful message."
+						}
+					]
+				}});
 			}
 		}
 	});
