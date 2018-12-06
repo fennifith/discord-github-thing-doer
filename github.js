@@ -12,6 +12,38 @@ function isValidGithubString(str) {
 	return (/^[0-9A-Za-z\-_]+$/g).test(str);
 }
 
+async function githubRequest(params, url, method) {
+	return _request(method || 'GET', "https://api.github.com/" + url, {
+		headers: { 
+			"User-Agent": "fennifith",
+			"Authorization": params.token ? "token " + params.token : null
+		}
+	}).then(function(result) {
+		return JSON.parse(result.getBody('utf8'))
+	}).catch(async function(err) {
+		return null;
+	});
+}
+
+async function getGithubUserField(params, userId) {
+	let user = await githubRequest(params, "users/" + userId);
+	if (user && user.login) {
+		let text = " | [GitHub](" + (user.html_url || "https://github.com/" + userId) + ")";
+		
+		if (user.blog && user.blog.length > 0)
+			text += " | [Website](" + user.blog + ")";
+
+		if (params.githubUsers[user.login])
+			text = "<@" + params.githubUsers[user.login] + ">" + text;
+		else text = "@" + user.login + " (Not authenticated)" + text;
+		
+		return {
+			name: user.name && user.name.length > 0 ? user.name : user.login,
+			value: text
+		};
+	} else return null;
+}
+
 async function linkRepo(params, message, repo, category) {
 	let name = repo.name.toLowerCase().replace(/[._]/g, '-');
 	console.log("Linking " + repo.full_name + " -> #" + name);
@@ -187,20 +219,11 @@ function start(params) {
 						return;
 					}
 				
-					let gists = await _request('GET', "https://api.github.com/users/" + messageParts[2] + "/gists?per_page=1000", {
-						headers: { 
-							"User-Agent": "fennifith",
-							"Authorization": params.token ? "token " + params.token : null
-						}
-					}).then(function(result) {
-						return JSON.parse(result.getBody('utf8'))
-					}).catch(async function(err) {
+					let gists = await githubRequest(params, "users/" + messageParts[2] + "/gists?per_page=1000");
+					if (!gists) {
 						await message.channel.send("I can't find that username on GitHub. That or their servers are down. Check <https://status.github.com/> maybe?");
-						return null;
-					});
-
-					if (!gists)
 						return;
+					}
 
 					let gistPhrase = "Discord authentication (server: " + message.guild.name + ")";
 					let githubPhrase = "I am " + messageParts[2] + " on GitHub";
@@ -251,7 +274,7 @@ function start(params) {
 						}).catch(function(error) {
 							return null;
 						});
-
+												
 						if (user && user.login) {
 							authUser(params, message, user.login.toLowerCase());
 							return;
@@ -260,6 +283,49 @@ function start(params) {
 
 					await message.channel.send("<@" + message.author.id + "> Please authenticate your GitHub account using the following URL, then run this command again with "
 							+ "the token copied from the resulting page: <https://github.com/login/oauth/authorize?client_id=" + params.client + ">");
+				}
+			} else if (messageParts[1] == "whois") { // output who a github user is on discord, or who a discord user is on github
+				if (!messageParts[2]) {
+					await message.channel.send("Invalid format; the format for this command is `whois <username>`.");
+					return;
+				}
+
+				const reg = /<@(.*)>/;
+				if (reg.test(messageParts[2])) {
+					let discordId = reg.exec(messageParts[2])[1];
+					let fields = [];
+					for (let githubId in params.githubUsers) {
+						if (discordId == params.githubUsers[githubUserId]) {
+							let field = await getGithubUserField(params, githubId);
+							if (field != null)
+								fields.push(field);
+						}
+					}
+
+					if (fields.length > 0) {
+						message.channel.send({ embed: {
+							title: "<@" + discordId + ">",
+							fields: fields
+						}});
+					} else {
+						message.channel.send("<@" + discordId + "> does not have any authenticated GitHub accounts; run `!github auth` to authenticate "
+							+ "your account.");
+					}
+				} else if (isValidGithubString(messageParts[2])) {
+					let githubId = messageParts[2];
+					let discordId = params.githubUsers[githubId];
+					if (discordId) {
+						let field = await getGithubUserField(params, githubId);
+						if (field) {
+							await message.channel.send({ embed: {
+								title: "<@" + discordId + ">",
+								fields: [ field ]
+							}});
+						}
+					}
+					
+					await message.channel.send("<https://github.com/" + githubId + "> is not yet authenticated. Run the `!github auth` command to "
+							+ "authenticate your account.");
 				}
 			} else if (messageParts[1] == "ls") {
 				if (!params.githubRepos[message.channel.id]) {
@@ -281,25 +347,9 @@ function start(params) {
 
 					let fields = [];
 					for (let i in contributors) {
-						let contributor = JSON.parse((await _request('GET', "https://api.github.com/users/" + contributors[i].login, {
-							headers: { 
-								"User-Agent": "fennifith",
-								"Authorization": params.token ? "token " + params.token : null
-							}
-						})).getBody('utf8'));
-
-						let text = " | [GitHub](" + contributor.html_url + ")";
-						if (contributor.blog && contributor.blog.length > 0)
-							text += " | [Website](" + contributor.blog + ")";
-				
-						if (params.githubUsers[contributor.login])
-							text = "<@" + params.githubUsers[contributor.login] + ">" + text;
-						else text = "@" + contributor.login + " (Not authenticated)" + text;
-
-						fields.push({
-							name: contributor.name && contributor.name.length > 0 ? contributor.name : contributor.login,
-							value: text
-						});
+						let field = await getGithubUserField(params, contributors[i].login);
+						if (field)
+							fields.push(field);
 					}
 	
 					await message.channel.send({ embed: {
@@ -309,14 +359,10 @@ function start(params) {
 						timestamp: new Date()
 					}});
 					return;
-				} else if (messageParts[2] == "collaborators") {
-					return;
-				} else if (messageParts[2] == "issues") {
-					return;
 				}
 			
 				await message.channel.send("Invalid syntax; the format is `!github ls <attribute>`.\n"
-						+ "Valid attributes are \"contributors\", \"collaborators\", or \"issues\".")
+						+ "Valid attributes are: \"contributors\".")
 			} else { //  display help message
 				await message.channel.send({ embed: {
 					title: "GitHub Thing Doer Commands",
