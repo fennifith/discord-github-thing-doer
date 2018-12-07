@@ -293,18 +293,20 @@ function start(params) {
 				const reg = /<@(.*)>/;
 				if (reg.test(messageParts[2])) {
 					let discordId = reg.exec(messageParts[2])[1];
+					let discordMember = _guild.members.find(m => m.user.id == discordId);
+					
 					let fields = [];
 					for (let githubId in params.githubUsers) {
-						if (discordId == params.githubUsers[githubUserId]) {
+						if (discordId == params.githubUsers[githubId]) {
 							let field = await getGithubUserField(params, githubId);
 							if (field != null)
 								fields.push(field);
 						}
 					}
 
-					if (fields.length > 0) {
+					if (discordMember && fields.length > 0) {
 						message.channel.send({ embed: {
-							title: "<@" + discordId + ">",
+							title: "@" + discordMember.user.username,
 							fields: fields
 						}});
 					} else {
@@ -314,13 +316,16 @@ function start(params) {
 				} else if (isValidGithubString(messageParts[2])) {
 					let githubId = messageParts[2];
 					let discordId = params.githubUsers[githubId];
-					if (discordId) {
+					let discordMember = _guild.members.find(m => m.user.id == discordId);
+					if (discordId && discordMember) {
 						let field = await getGithubUserField(params, githubId);
 						if (field) {
 							await message.channel.send({ embed: {
-								title: "<@" + discordId + ">",
+								title: "@" + discordMember.user.username,
 								fields: [ field ]
 							}});
+
+							return;
 						}
 					}
 					
@@ -358,6 +363,7 @@ function start(params) {
 						fields: fields,
 						timestamp: new Date()
 					}});
+					
 					return;
 				}
 			
