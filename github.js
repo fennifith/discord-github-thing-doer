@@ -6,18 +6,39 @@ const _request = require('then-request');
 const _discord = require('discord.js');
 const _client = new _discord.Client();
 
+var _params;
 var _guild;
 
+/**
+ * Check whether the passed string is valid to
+ * pass to GitHub or not. Can include numbers, 
+ * letters, dashes, or underscores, and nothing
+ * else.
+ * 
+ * @param str			The string to check.
+ */
 function isValidGithubString(str) {
 	return (/^[0-9A-Za-z\-_]+$/g).test(str);
 }
 
-async function githubRequest(params, url, method) {
+/**
+ * Request data from the GitHub API.
+ * 
+ * @param url			The endpoint to request data from;
+ * 						not the entire URL. "https://api.github.com/"
+ * 						is appended automatically.
+ * @param method		(optional) the method to send the request
+ * 						with; GET, POST, etc.
+ * @param payload		(optional) a JSON object to send as
+ * 						the request payload.
+ */
+async function githubRequest(url, method, payload) {
 	return _request(method || 'GET', "https://api.github.com/" + url, {
 		headers: { 
 			"User-Agent": "fennifith",
-			"Authorization": params.token ? "token " + params.token : null
-		}
+			"Authorization": _params.token ? "token " + _params.token : null
+		},
+		json: payload
 	}).then(function(result) {
 		return JSON.parse(result.getBody('utf8'))
 	}).catch(async function(err) {
@@ -25,16 +46,22 @@ async function githubRequest(params, url, method) {
 	});
 }
 
-async function getGithubUserField(params, userId) {
-	let user = await githubRequest(params, "users/" + userId);
+/**
+ * Create an embed field based on all known data about a user
+ * from their GitHub login.
+ * 
+ * @param userId		The GitHub login of the user.
+ */
+async function getGithubUserField(userId) {
+	let user = await githubRequest("users/" + userId);
 	if (user && user.login) {
 		let text = " | [GitHub](" + (user.html_url || "https://github.com/" + userId) + ")";
 		
 		if (user.blog && user.blog.length > 0)
 			text += " | [Website](" + user.blog + ")";
 
-		if (params.githubUsers[user.login])
-			text = "<@" + params.githubUsers[user.login] + ">" + text;
+		if (_params.githubUsers[user.login])
+			text = "<@" + _params.githubUsers[user.login] + ">" + text;
 		else text = "@" + user.login + " (Not authenticated)" + text;
 		
 		return {
@@ -44,7 +71,21 @@ async function getGithubUserField(params, userId) {
 	} else return null;
 }
 
-async function linkRepo(params, message, repo, category) {
+/**
+ * Performs the magic to create and link a channel to a specific
+ * GitHub repository. This includes creating a channel (if it doesn't
+ * already exist), setting the topic, placing it in a category, and
+ * creating a webhook from the GitHub repository to the channel.
+ * 
+ * @param message		The message sent to link the repositories;
+ * 						used only to reply with status messages and
+ * 						such.
+ * @param repo			The repository object to link; returned by
+ * 						the GitHub API.
+ * @param category		The category to place the linked channel
+ * 						under.
+ */
+async function linkRepo(message, repo, category) {
 	let name = repo.name.toLowerCase().replace(/[._]/g, '-');
 	console.log("Linking " + repo.full_name + " -> #" + name);
 				
@@ -56,10 +97,10 @@ async function linkRepo(params, message, repo, category) {
 		await message.channel.send("New project: <https://github.com/" + repo.full_name + "> -> <#" + channel.id + ">");
 	}
 
-	params.githubRepos[channel.id] = repo.full_name;
-	if (params.writeGithubRepos)
-		params.writeGithubRepos(params.githubRepos);
-		//TODO: warn against undefined method
+	_params.githubRepos[channel.id] = repo.full_name;
+	if (_params.writeGithubRepos)
+		_params.writeGithubRepos(_params.githubRepos);
+	else console.error("Unimplemented method: writeGithubRepos(repos)");
 
 	if (category) {
 		await channel.setParent(category).catch(function(e) {
@@ -74,48 +115,59 @@ async function linkRepo(params, message, repo, category) {
 	if (webhooks.exists(w => w.name === "GitHub Repo"))
 		webhook = webhooks.find(w => w.name === "GitHub Repo");
 	else webhook = await channel.createWebhook("GitHub Repo", "https://jfenn.me/images/ic/git.png");
-					
-	_request('POST', "https://api.github.com/repos/" + repo.full_name + "/hooks", {
-		headers: { 
-			"User-Agent": "fennifith",
-			"Authorization": params.token ? "token " + params.token : null
+
+	await githubRequest("repos/" + repo.full_name + "/hooks", 'POST', {
+		name: "web",
+		config: {
+			url: "https://discordapp.com/api/webhooks/" + webhook.id + "/" + webhook.token + "/github",
+			content_type: "json"
 		},
-		json: {
-			name: "web",
-			config: {
-				url: "https://discordapp.com/api/webhooks/" + webhook.id + "/" + webhook.token + "/github",
-				content_type: "json"
-			},
-			events: [
-				"commit_comment",
-				"create",
-				"delete",
-				"issue_comment",
-				"issues",
-				"page_build",
-				"pull_request",
-				"pull_request_review",
-				"pull_request_review_comment",
-				"push",
-				"release"
-			],
-			active: true
-		}
+		events: [
+			"commit_comment",
+			"create",
+			"delete",
+			"issue_comment",
+			"issues",
+			"page_build",
+			"pull_request",
+			"pull_request_review",
+			"pull_request_review_comment",
+			"push",
+			"release"
+		],
+		active: true
 	});
 }
 
-async function authUser(params, message, userLogin) {
+/**
+ * Authenticates the sender of a message as a GitHub user, using
+ * the passed login. This does not check that the sender owns the
+ * passed GitHub login, nor does it check that the GitHub account
+ * even exists; all it does is add the user to the database and
+ * output any notices / error messages such as "User x has replaced
+ * y as the owner of z", or "I can't find your member id, so you
+ * probably aren't from the server this bot is used in".
+ * 
+ * @param message		The message sent by the user. This isn't
+ * 						actually used for any more than obtaining
+ * 						the author id and finding a channel to send
+ * 						status messages in, so it could be faked
+ * 						with something like `{ author: { id: "123" },
+ * 						channel: channel }`.
+ * @param userLogin		The GitHub login to authenticate the user as.
+ */
+async function authUser(message, userLogin) {
 	console.log(message.author.username + " has been authed as " + userLogin);
 
-	if (params.githubUsers[userLogin])
-		await message.channel.send("<@" + message.author.id + "> has replaced <@" + params.githubUsers[userLogin] + "> as the "
+	if (_params.githubUsers[userLogin])
+		await message.channel.send("<@" + message.author.id + "> has replaced <@" + _params.githubUsers[userLogin] + "> as the "
 				+ "owner of <https://github.com/" + userLogin + ">.");
 	else await message.channel.send("<@" + message.author.id + "> is authenticated as <https://github.com/" + userLogin + ">.");
 					
-	params.githubUsers[userLogin] = message.author.id;
-	if (params.writeGithubUsers)
-		params.writeGithubUsers(params.githubUsers);
-		//TODO: warn against undefined method
+	_params.githubUsers[userLogin] = message.author.id;
+	if (_params.writeGithubUsers)
+		_params.writeGithubUsers(_params.githubUsers);
+	else console.error("Unimplemented method: writeGithubUsers(users)");
 
 	let authRole = _guild.roles.find(r => r.name == "github-auth");
 	let authMember = _guild.members.find(m => m.user.id == message.author.id);
@@ -137,7 +189,7 @@ async function authUser(params, message, userLogin) {
  * 					of the discord bot to login as).
  */
 function start(params) {
-	params = params || {};
+	_params = params || {};
 
 	_client.on('ready', () => {
 		console.log('Logged in as ' + _client.user.tag);
@@ -183,25 +235,19 @@ function start(params) {
 				let categoryChannel = message.guild.channels.find(c => c.name.toLowerCase() == (messageParts[3] ? messageParts[3] : "projects"));
 
 				if (messageParts[2].includes("/")) {
-					await linkRepo(params, message, JSON.parse((await _request('GET', "https://api.github.com/repos/" + messageParts[2], {
+					await linkRepo(message, JSON.parse((await _request('GET', "https://api.github.com/repos/" + messageParts[2], {
 						headers: { 
 							"User-Agent": "fennifith",
-							"Authorization": params.token ? "token " + params.token : null
+							"Authorization": _params.token ? "token " + _params.token : null
 						}
 					})).getBody('utf8')), categoryChannel);
 				} else {
 					await message.channel.send("Syncing repositories with <https://github.com/" + messageParts[2] + ">...");
 			
-					let repos = JSON.parse((await _request('GET', "https://api.github.com/users/" + messageParts[2] + "/repos?per_page=10000", {
-						headers: { 
-							"User-Agent": "fennifith",
-							"Authorization": params.token ? "token " + params.token : null
-						}
-					})).getBody('utf8'));
-		
-					for (let i = 0; i < repos.length; i++) {
+					let repos = await githubRequest("users/" + messageParts[2] + "/repos?per_page=10000");
+					for (let i in repos) {
 						if (!repos[i].fork && !repos[i].archived && repos[i].full_name.startsWith(messageParts[2]) && repos[i].description && !repos[i].description.startsWith("("))
-							await linkRepo(params, message, repos[i], categoryChannel);
+							await linkRepo(message, repos[i], categoryChannel);
 					}			
 				}
 
@@ -214,12 +260,12 @@ function start(params) {
 					}
 
 					messageParts[2] = messageParts[2].toLowerCase();
-					if (params.githubUsers[messageParts[2]] == message.author.id) {
+					if (_params.githubUsers[messageParts[2]] == message.author.id) {
 						await message.channel.send("<@" + message.author.id + ">, you are already authenticated as <https://github.com/" + messageParts[2] + ">.");
 						return;
 					}
 				
-					let gists = await githubRequest(params, "users/" + messageParts[2] + "/gists?per_page=1000");
+					let gists = await githubRequest("users/" + messageParts[2] + "/gists?per_page=1000");
 					if (!gists) {
 						await message.channel.send("I can't find that username on GitHub. That or their servers are down. Check <https://status.github.com/> maybe?");
 						return;
@@ -234,12 +280,12 @@ function start(params) {
 							let file = (await _request('GET', gists[i].files[Object.keys(gists[i].files)[0]].raw_url, {
 								headers: { 
 									"User-Agent": "fennifith",
-									"Authorization": params.token ? "token " + params.token : null
+									"Authorization": _params.token ? "token " + _params.token : null
 								}
 							})).getBody('utf8').toLowerCase();
 
 							if (file.includes(githubPhrase.toLowerCase()) && file.includes(discordPhrase.toLowerCase())) {
-								authUser(params, message, messageParts[2]);
+								authUser(message, messageParts[2]);
 								return;
 							}
 						}
@@ -276,13 +322,13 @@ function start(params) {
 						});
 												
 						if (user && user.login) {
-							authUser(params, message, user.login.toLowerCase());
+							authUser(message, user.login.toLowerCase());
 							return;
 						}
 					}
 
 					await message.channel.send("<@" + message.author.id + "> Please authenticate your GitHub account using the following URL, then run this command again with "
-							+ "the token copied from the resulting page: <https://github.com/login/oauth/authorize?client_id=" + params.client + ">");
+							+ "the token copied from the resulting page: <https://github.com/login/oauth/authorize?client_id=" + _params.client + ">");
 				}
 			} else if (messageParts[1] == "whois") { // output who a github user is on discord, or who a discord user is on github
 				if (!messageParts[2]) {
@@ -296,9 +342,9 @@ function start(params) {
 					let discordMember = _guild.members.find(m => m.user.id == discordId);
 					
 					let fields = [];
-					for (let githubId in params.githubUsers) {
-						if (discordId == params.githubUsers[githubId]) {
-							let field = await getGithubUserField(params, githubId);
+					for (let githubId in _params.githubUsers) {
+						if (discordId == _params.githubUsers[githubId]) {
+							let field = await getGithubUserField(githubId);
 							if (field != null)
 								fields.push(field);
 						}
@@ -315,10 +361,10 @@ function start(params) {
 					}
 				} else if (isValidGithubString(messageParts[2])) {
 					let githubId = messageParts[2];
-					let discordId = params.githubUsers[githubId];
+					let discordId = _params.githubUsers[githubId];
 					let discordMember = _guild.members.find(m => m.user.id == discordId);
 					if (discordId && discordMember) {
-						let field = await getGithubUserField(params, githubId);
+						let field = await getGithubUserField(githubId);
 						if (field) {
 							await message.channel.send({ embed: {
 								title: "@" + discordMember.user.username,
@@ -333,26 +379,26 @@ function start(params) {
 							+ "authenticate your account.");
 				}
 			} else if (messageParts[1] == "ls") {
-				if (!params.githubRepos[message.channel.id]) {
+				if (!_params.githubRepos[message.channel.id]) {
 					message.channel.send("There doesn't seem to be a repository linked to this channel. Type `!github help` to see the full list of "
 							+ "available commands.");
 					return;
 				}
 
-				let repo = params.githubRepos[message.channel.id];
+				let repo = _params.githubRepos[message.channel.id];
 				console.log("Command issued from " + repo);
 		
 				if (messageParts[2] == "contributors") {
 					let contributors = JSON.parse((await _request('GET', "https://api.github.com/repos/" + repo + "/contributors", {
 						headers: { 
 							"User-Agent": "fennifith",
-							"Authorization": params.token ? "token " + params.token : null
+							"Authorization": _params.token ? "token " + _params.token : null
 						}
 					})).getBody('utf8'));
 
 					let fields = [];
 					for (let i in contributors) {
-						let field = await getGithubUserField(params, contributors[i].login);
+						let field = await getGithubUserField(contributors[i].login);
 						if (field)
 							fields.push(field);
 					}
@@ -404,7 +450,7 @@ function start(params) {
 		}
 	});
 
-	_client.login(params.bot);
+	_client.login(_params.bot);
 }
 
 module.exports.start = start;
