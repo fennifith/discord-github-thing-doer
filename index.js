@@ -4,9 +4,13 @@ const _fs = require('fs');
 const _path = require('path');
 const _args = require('minimist')(process.argv.slice(2));
 const _githubBot = require('./github.js');
+const _travisBot = require('./travis.js');
 
 const _githubUsersPath = _path.join(process.env.HOME, ".config/discord-github-thing-doer/users.json");
 const _githubReposPath = _path.join(process.env.HOME, ".config/discord-github-thing-doer/repos.json");
+
+const _githubUsers = _fs.existsSync(_githubUsersPath) ? JSON.parse(_fs.readFileSync(_githubUsersPath, "utf8")) : {};
+const _githubRepos = _fs.existsSync(_githubReposPath) ? JSON.parse(_fs.readFileSync(_githubReposPath, "utf8")) : {};
 
 async function writeGithubUsers(users) {
 	let paths = _githubUsersPath.split("/");
@@ -37,12 +41,16 @@ async function writeGithubRepos(repos) {
 }
 
 _githubBot.start({
-	token: _args.g,
-	client: _args.c,
-	githubUsers: _fs.existsSync(_githubUsersPath) ? JSON.parse(_fs.readFileSync(_githubUsersPath, "utf8")) : {},
-	githubRepos: _fs.existsSync(_githubReposPath) ? JSON.parse(_fs.readFileSync(_githubReposPath, "utf8")) : {},
+	client: _args.githubClient,
+	token: _args.githubToken,
+	githubUsers: _githubUsers,
+	githubRepos: _githubRepos,
 	writeGithubUsers: writeGithubUsers,
 	writeGithubRepos: writeGithubRepos,
-	bot: _args.t
-})
+	bot: _args.discordGithubToken
+});
 
+_travisBot.start({
+	githubRepos: _githubRepos,
+	bot: _args.discordTravisToken
+});
