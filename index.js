@@ -51,6 +51,10 @@ _githubBot.start({
 });
 
 _travisBot.start({
+	client: _args.githubClient,
+	token: _args.githubToken,
+	travisToken: _args.travisToken,
+	githubUsers: _githubUsers,
 	githubRepos: _githubRepos,
 	bot: _args.discordTravisToken
 });
