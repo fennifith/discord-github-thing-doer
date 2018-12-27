@@ -129,7 +129,7 @@ async function start(params) {
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
 						color = 0xDB4545; // red
-					} else if (builds[i].state == "canceled") {
+					} else {
 						continue;
 					}
 
@@ -138,9 +138,9 @@ async function start(params) {
 							title: "Travis-CI Build #" + builds[i].number,
 							url: "https://travis-ci.com/" + builds[i].repository.slug + "/builds/" + builds[i].id,
 							color: color,
-							description: "Build #" + builds[i].number + " status: " + builds[i].state
-								+ ", in repository " + builds[i].repository.slug + " - "
-								+ (builds[i].commit ? "\"" + builds[i].commit.message + "\""
+							description: "Build status (#" + builds[i].number + "): " + builds[i].state
+								+ " - " + builds[i].repository.slug + " - "
+								+ (builds[i].commit ? "commit \"" + builds[i].commit.message + "\""
 								: "started by " + getUser(builds[i].created_by.login)),
 							timestamp: new Date()
 						}
