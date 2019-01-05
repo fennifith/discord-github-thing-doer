@@ -415,6 +415,14 @@ function start(params) {
 			
 				await message.channel.send("Invalid syntax; the format is `!github ls <attribute>`.\n"
 						+ "Valid attributes are: \"contributors\".")
+			} else if (messageParts[1] == "restart") {
+				let member = _guild.members.find(m => m.user.id == message.author.id);
+				if (!member || !member.hasPermission("ADMINISTRATOR")) {
+					await message.channel.send("You don't have the necessary permissions to run this command.");
+					return;
+				}
+
+				process.exit();
 			} else { //  display help message
 				await message.channel.send({ embed: {
 					title: "GitHub Thing Doer Commands",
