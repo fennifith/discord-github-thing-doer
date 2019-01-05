@@ -87,7 +87,7 @@ async function getGithubUserField(userId) {
  */
 async function linkRepo(message, repo, category) {
 	let name = repo.name.toLowerCase().replace(/[._]/g, '-');
-	console.log("Linking " + repo.full_name + " -> #" + name);
+	await log("Linking " + repo.full_name + " -> #" + name);
 				
 	let channel;
 	if (_guild.channels.exists(c => c.name === name)) {
@@ -157,7 +157,7 @@ async function linkRepo(message, repo, category) {
  * @param userLogin		The GitHub login to authenticate the user as.
  */
 async function authUser(message, userLogin) {
-	console.log(message.author.username + " has been authed as " + userLogin);
+	await log(message.author.username + " has been authed as " + userLogin);
 
 	if (_params.githubUsers[userLogin])
 		await message.channel.send("<@" + message.author.id + "> has replaced <@" + _params.githubUsers[userLogin] + "> as the "
@@ -177,6 +177,20 @@ async function authUser(message, userLogin) {
 }
 
 /**
+ * Logs a message. This will send it to the appropriate channel in the discord
+ * server as well as output it in the console.
+ */
+async function log(message, type) {
+	console.log(message);
+
+	if (_guild) {
+		let channel = _guild.channels.find(c => c.name == "thing-doers");
+		if (channel)
+			await channel.send(message);
+	}
+}
+
+/**
  * Starts the discord bot. Pretty self explanatory.
  *
  * @param params	A bunch of params. Contains "token" (the auth token to use),
@@ -192,7 +206,8 @@ function start(params) {
 	_params = params || {};
 
 	_client.on('ready', () => {
-		console.log('Logged in as ' + _client.user.tag);
+		_guild = _client.guilds.first();
+		log("I'm back online!");
 	});
 
 	_client.on('guildMemberAdd', async function(member) {
@@ -386,7 +401,6 @@ function start(params) {
 				}
 
 				let repo = _params.githubRepos[message.channel.id];
-				console.log("Command issued from " + repo);
 		
 				if (messageParts[2] == "contributors") {
 					let contributors = JSON.parse((await _request('GET', "https://api.github.com/repos/" + repo + "/contributors", {
@@ -422,6 +436,7 @@ function start(params) {
 					return;
 				}
 
+				await log("Restart requested; fetching latest git source...");
 				process.exit();
 			} else { //  display help message
 				await message.channel.send({ embed: {
