@@ -211,7 +211,7 @@ function start(params) {
 		_guild = _client.guilds.first();
 		log("I'm back online!");
 		
-		log({
+		log({ embed: {
 			title: "Server Info",
 			color: 0x4CAF50,
 			fields: [
@@ -232,7 +232,7 @@ function start(params) {
 				}
 			],
 			timestamp: new Date()
-		});
+		}});
 	});
 
 	_client.on('guildMemberAdd', async function(member) {
