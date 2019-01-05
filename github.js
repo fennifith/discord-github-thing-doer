@@ -1,5 +1,6 @@
 'use strict';
 
+const _os = require('os');
 const _fs = require('fs');
 const _path = require('path');
 const _request = require('then-request');
@@ -181,7 +182,8 @@ async function authUser(message, userLogin) {
  * server as well as output it in the console.
  */
 async function log(message, type) {
-	console.log(message);
+	if (typeof message === 'string')
+		console.log(message);
 
 	if (_guild) {
 		let channel = _guild.channels.find(c => c.name == "thing-doers");
@@ -208,6 +210,29 @@ function start(params) {
 	_client.on('ready', () => {
 		_guild = _client.guilds.first();
 		log("I'm back online!");
+		
+		log({
+			title: "Server Info",
+			color: 0x4CAF50,
+			fields: [
+				{
+					name: "Operating System",
+					value: _os.type() + ", " + _os.release(),
+				},
+				{
+					name: "User Info",
+					value: _os.userInfo().username + "@" + _os.hostname() + "\n"
+						+ "Uptime: " + _os.uptime() + " seconds"
+				},
+				{
+					name: "Hardware",
+					value: "CPU: " + _os.cpus()[0].model + "\n"
+						+ "Memory: " + _os.freemem() + " bytes\n"
+						+ "Network: " + Object.keys(_os.networkInterfaces())[0]
+				}
+			],
+			timestamp: new Date()
+		});
 	});
 
 	_client.on('guildMemberAdd', async function(member) {
