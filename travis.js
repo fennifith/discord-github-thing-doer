@@ -81,6 +81,20 @@ function getUser(login) {
 }
 
 /**
+ * Logs a message. This will send it to the appropriate channel in the discord
+ * server as well as output it in the console.
+ */
+async function log(message, type) {
+	console.log(message);
+
+	if (_guild) {
+		let channel = _guild.channels.find(c => c.name == "thing-doers");
+		if (channel)
+			await channel.send(message);
+	}
+}
+
+/**
  * Starts the discord bot. Pretty self explanatory.
  *
  * @param params	A bunch of params. Contains "githubRepos" (an object mapping channel to repository names),
@@ -109,7 +123,7 @@ async function start(params) {
 		for (let i in builds) {
 			if (!_builds[builds[i].id] || _builds[builds[i].id] != builds[i].state) {
 				_builds[builds[i].id] = builds[i].state;
-				console.log("Travis build updated: #" + builds[i].number + " of " + builds[i].repository.slug + " (" + builds[i].state + ")");
+				await log("Travis build updated: #" + builds[i].number + " of " + builds[i].repository.slug + " (" + builds[i].state + ")");
 
 				let channelId = null;
 				for (let id in _params.githubRepos) {
@@ -151,7 +165,8 @@ async function start(params) {
 	}, 10000);
 
 	_client.on('ready', () => {
-		console.log('Logged in as ' + _client.user.tag);
+		_guild = _client.guilds.first();
+		log("I'm back online!");
 	});
 
 	_client.on('message', async function(message) {
