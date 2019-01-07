@@ -27,6 +27,9 @@ Several commands can be used to invoke the GitHub bot to perform various actions
 					'auth' command, but verifies their account through the creation of
 					a gist instead of using GitHub's OAuth APIs.
 
+!github whois <user>			Outputs the user's verified identity, if any; passing an @mention
+					or GitHub login should both result in the same output.
+
 !github ls contributors			Lists the contributors to the repository that the current channel
 					is linked to, if any.
 
@@ -48,7 +51,12 @@ The Travis bot responds to a few commands as well:
 And finally, 
 
 ```
+!thing-doer server			Output information about the server, such as the CPU, current user,
+					uptime, memory, etc.
+
 !thing-doer restart			Ends the process that the bot is running on; particularly useful
 					if the bot is run in a loop of `git pull; npm install; node index.js`
 					so it can be restarted to pull the latest source code automatically.
+
+!thing-doer help			Displays this beautiful message.
 ```
