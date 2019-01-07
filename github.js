@@ -277,7 +277,7 @@ function start(params) {
 			} else {
 				await message.channel.send({embed: {
 					title: "GitHub Discord Thing Doer",
-					url: "https://jfenn.me/projects/discord-github-thing-doer"
+					url: "https://jfenn.me/projects/discord-github-thing-doer",
 					fields: [
 						{
 							name: "!thing-doer server",
