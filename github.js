@@ -257,7 +257,7 @@ function start(params) {
 
 		let messageParts = message.content.split(" ");
 		if (messageParts[0] === "!thing-doer") {
-			let member = guild.members.find(m => m.user.id == message.author.id);
+			let member = _guild.members.find(m => m.user.id == message.author.id);
 			if (!member || !member.hasPermission("ADMINISTRATOR")) {
 				await message.channel.send("You don't have the necessary permissions to run this command.");
 				return;
@@ -275,7 +275,7 @@ function start(params) {
 				await log("Restart requested; fetching latest git source...");
 				process.exit();
 			} else {
-				await message.channel.send({embed: {
+				await message.channel.send({ embed: {
 					title: "GitHub Discord Thing Doer",
 					url: "https://jfenn.me/projects/discord-github-thing-doer",
 					fields: [
