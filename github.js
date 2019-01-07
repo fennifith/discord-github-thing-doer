@@ -488,8 +488,8 @@ function start(params) {
 					fields: [
 						{
 							name: "!github sync <user/repo> [category]",
-							value: "Creates channels under [category], the first category with the name 'projects', or"
-									+ "uncategorized (prioritized in that order) linked to the specified user's GitHub"
+							value: "Creates channels under [category], the first category with the name 'projects', or "
+									+ "uncategorized (prioritized in that order) linked to the specified user's GitHub "
 									+ "repos (or to the specified repo) via webhooks."
 						},
 						{
