@@ -448,11 +448,13 @@ function start(params) {
 					let discordId = _params.githubUsers[githubId];
 					let discordMember = _guild.members.find(m => m.user.id == discordId);
 					if (discordId && discordMember) {
+						let githubUser = await githubRequest("users/" + githubId);
 						let field = await getGithubUserField(githubId);
-						if (field) {
+						if (githubUser && githubUser.login && field) {
 							await message.channel.send({ embed: {
 								title: "@" + discordMember.user.username,
-								fields: [ field ]
+								fields: [ field ],
+								thumbnail: { url: githubUser.avatar_url }
 							}});
 
 							return;
@@ -518,6 +520,11 @@ function start(params) {
 							value: "Verifies a user's GitHub account and does the same as the normal 'auth' command, "
 									+ "but verifies their account through the creation of a gist instead of using GitHub's "
 									+ "OAuth APIs."
+						},
+						{
+							name: "!github whois <user>"
+							value: "Outputs the user's verified identity, if any; passing an @mention or GitHub login should "
+									+ "both result in the same output."
 						},
 						{
 							name: "!github ls contributors",
