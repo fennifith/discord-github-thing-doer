@@ -257,6 +257,12 @@ function start(params) {
 
 		let messageParts = message.content.split(" ");
 		if (messageParts[0] === "!thing-doer") {
+			let member = guild.members.find(m => m.user.id == message.author.id);
+			if (!member || !member.hasPermission("ADMINISTRATOR")) {
+				await message.channel.send("You don't have the necessary permissions to run this command.");
+				return;
+			}
+		
 			if (messageParts[1] === "server") {
 				await message.channel.send({ embed: {
 					title: "Server Info",
@@ -265,17 +271,28 @@ function start(params) {
 					timestamp: new Date()
 				}});
 			} else if (messageParts[1] === "restart") {
-				let member = _guild.members.find(m => m.user.id == message.author.id);
-				if (!member || !member.hasPermission("ADMINISTRATOR")) {
-					await message.channel.send("You don't have the necessary permissions to run this command.");
-					return;
-				}
-
 				await message.channel.send("Restarting...");
 				await log("Restart requested; fetching latest git source...");
 				process.exit();
 			} else {
-				//TODO: help message
+				await message.channel.send({embed: {
+					title: "GitHub Discord Thing Doer",
+					url: "https://jfenn.me/projects/discord-github-thing-doer"
+					fields: [
+						{
+							name: "!thing-doer server",
+							value: "Outputs basic server info."
+						},
+						{
+							name: "!thing-doer restart",
+							value: "Restarts the bot process, pulling changes from git and reinstalling dependencies."
+						},
+						{
+							name: "!thing-doer help",
+							value: "Displays this beautiful message."
+						}
+					]
+				}});
 			}
 		} else if (messageParts[0] === "!github") {
 			if (!_guild && message.channel.type == "dm") {
