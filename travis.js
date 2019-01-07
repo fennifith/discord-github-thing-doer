@@ -152,10 +152,10 @@ async function start(params) {
 							title: "Travis-CI Build #" + builds[i].number,
 							url: "https://travis-ci.com/" + builds[i].repository.slug + "/builds/" + builds[i].id,
 							color: color,
-							description: "Build status (#" + builds[i].number + "): " + builds[i].state
-								+ " - " + builds[i].repository.slug + " - "
-								+ (builds[i].commit ? "commit \"" + builds[i].commit.message + "\""
-								: "started by " + getUser(builds[i].created_by.login)),
+							description: "Build status: " + builds[i].state + "\n"
+								+ "Repository: " + builds[i].repository.slug + "\n"
+								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\"\n" : "")
+								+ "Started by: " + getUser(builds[i].created_by.login),
 							timestamp: new Date()
 						}
 					});
@@ -181,13 +181,24 @@ async function start(params) {
 		
 			let messageParts = message.content.split(" ");
 
-			// TODO: add command syntax
-
-			{ //  display help message
+			if (messageParts[1] === "sync") {
+				//TODO: sync command
+			} else { //  display help message
 				await message.channel.send({ embed: {
 					title: "Travis Thing Doer Commands",
 					url: "https://jfenn.me/projects/discord-github-thing-doer",
-					fields: []
+					fields: [
+						{
+							name: "!travis sync",
+							value: "Creates webhooks for GitHub-linked channels to receive deployments "
+								+ "through Travis; sets the $DISCORD_WEBHOOK environment variable on each "
+								+ "linked repository."
+						},
+						{
+							name: "!travis help",
+							value: "Displays this beautiful message."
+						}
+					]
 				}});
 			}
 		}
