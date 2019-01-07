@@ -193,6 +193,29 @@ async function log(message, type) {
 }
 
 /**
+ * Gets server info.
+ */
+function getServerInfo() {
+	return [
+		{
+			name: "Operating System",
+			value: _os.type() + ", " + _os.release()
+		},
+		{
+			name: "User Info",
+			value: _os.userInfo().username + "@" + _os.hostname() + "\n"
+				+ "Uptime: " + _os.uptime() + " seconds"
+		},
+		{
+			name: "Hardware",
+			value: "CPU: " + _os.cpus()[0].model + "\n"
+				+ "Memory: " + _os.freemem() + " bytes\n"
+				+ "Network: " + Object.keys(_os.networkInterfaces())[0]
+		}
+	];
+}
+
+/**
  * Starts the discord bot. Pretty self explanatory.
  *
  * @param params	A bunch of params. Contains "token" (the auth token to use),
@@ -214,23 +237,7 @@ function start(params) {
 		log({ embed: {
 			title: "Server Info",
 			color: 0x4CAF50,
-			fields: [
-				{
-					name: "Operating System",
-					value: _os.type() + ", " + _os.release(),
-				},
-				{
-					name: "User Info",
-					value: _os.userInfo().username + "@" + _os.hostname() + "\n"
-						+ "Uptime: " + _os.uptime() + " seconds"
-				},
-				{
-					name: "Hardware",
-					value: "CPU: " + _os.cpus()[0].model + "\n"
-						+ "Memory: " + _os.freemem() + " bytes\n"
-						+ "Network: " + Object.keys(_os.networkInterfaces())[0]
-				}
-			],
+			fields: getServerInfo(),
 			timestamp: new Date()
 		}});
 	});
@@ -247,14 +254,34 @@ function start(params) {
 	_client.on('message', async function(message) {
 		if (!_guild)
 			_guild = message.guild; // the bot can only ever be in one server at a time, so this is probably okay
-	
-		if (message.content.startsWith("!github ")) {
+
+		let messageParts = message.content.split(" ");
+		if (messageParts[0] === "!thing-doer") {
+			if (messageParts[1] === "server") {
+				await message.channel.send({ embed: {
+					title: "Server Info",
+					color: 0x4CAF50,
+					fields: getServerInfo(),
+					timestamp: new Date()
+				}});
+			} else if (messageParts[1] === "restart") {
+				let member = _guild.members.find(m => m.user.id == message.author.id);
+				if (!member || !member.hasPermission("ADMINISTRATOR")) {
+					await message.channel.send("You don't have the necessary permissions to run this command.");
+					return;
+				}
+
+				await message.channel.send("Restarting...");
+				await log("Restart requested; fetching latest git source...");
+				process.exit();
+			} else {
+				//TODO: help message
+			}
+		} else if (messageParts[0] === "!github") {
 			if (!_guild && message.channel.type == "dm") {
 				await message.channel.send("Wow, you sure caught me at a bad time. I'm a little busy right now, maybe you could try again later?"); // wow rude
 				return;
 			}
-		
-			let messageParts = message.content.split(" ");
 
 			if (messageParts[1] === "sync") { // synchronize project channels + webhooks with a user's github repository
 				if (message.channel.type == "dm") {
@@ -454,15 +481,6 @@ function start(params) {
 			
 				await message.channel.send("Invalid syntax; the format is `!github ls <attribute>`.\n"
 						+ "Valid attributes are: \"contributors\".")
-			} else if (messageParts[1] == "restart") {
-				let member = _guild.members.find(m => m.user.id == message.author.id);
-				if (!member || !member.hasPermission("ADMINISTRATOR")) {
-					await message.channel.send("You don't have the necessary permissions to run this command.");
-					return;
-				}
-
-				await log("Restart requested; fetching latest git source...");
-				process.exit();
 			} else { //  display help message
 				await message.channel.send({ embed: {
 					title: "GitHub Thing Doer Commands",
