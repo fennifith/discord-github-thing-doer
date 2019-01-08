@@ -522,7 +522,7 @@ function start(params) {
 									+ "OAuth APIs."
 						},
 						{
-							name: "!github whois <user>"
+							name: "!github whois <user>",
 							value: "Outputs the user's verified identity, if any; passing an @mention or GitHub login should "
 									+ "both result in the same output."
 						},
