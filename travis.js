@@ -153,8 +153,7 @@ async function start(params) {
 							url: "https://travis-ci.com/" + builds[i].repository.slug + "/builds/" + builds[i].id,
 							color: color,
 							description: "Build status: " + builds[i].state + "\n"
-								+ "Repository: " + builds[i].repository.slug + "\n"
-								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\"\n" : "")
+								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\" [" + builds[i].commit.sha.substring(0, 8) + "]\n" : "")
 								+ "Started by: " + getUser(builds[i].created_by.login),
 							timestamp: new Date()
 						}
