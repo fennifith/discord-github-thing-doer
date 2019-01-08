@@ -62,7 +62,7 @@ async function getGithubUserField(userId) {
 			text += " | [Website](" + user.blog + ")";
 
 		if (_params.githubUsers[user.login.toLowerCase()])
-			text = "<@" + _params.githubUsers[user.login] + ">" + text;
+			text = "<@" + _params.githubUsers[user.login.toLowerCase()] + ">" + text;
 		else text = "@" + user.login + " (Not authenticated)" + text;
 		
 		return {
