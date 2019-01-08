@@ -61,7 +61,7 @@ async function getGithubUserField(userId) {
 		if (user.blog && user.blog.length > 0)
 			text += " | [Website](" + user.blog + ")";
 
-		if (_params.githubUsers[user.login])
+		if (_params.githubUsers[user.login.toLowerCase()])
 			text = "<@" + _params.githubUsers[user.login] + ">" + text;
 		else text = "@" + user.login + " (Not authenticated)" + text;
 		
@@ -444,7 +444,7 @@ function start(params) {
 							+ "your account.");
 					}
 				} else if (isValidGithubString(messageParts[2])) {
-					let githubId = messageParts[2];
+					let githubId = messageParts[2].toLowerCase();
 					let discordId = _params.githubUsers[githubId];
 					let discordMember = _guild.members.find(m => m.user.id == discordId);
 					if (discordId && discordMember) {
