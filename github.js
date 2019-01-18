@@ -465,15 +465,15 @@ function start(params) {
 							+ "authenticate your account.");
 				}
 			} else if (messageParts[1] == "ls") {
-				if (!_params.githubRepos[message.channel.id]) {
-					message.channel.send("There doesn't seem to be a repository linked to this channel. Type `!github help` to see the full list of "
-							+ "available commands.");
-					return;
-				}
-
 				let repo = _params.githubRepos[message.channel.id];
 		
 				if (messageParts[2] == "contributors") {
+					if (!repo) {
+						message.channel.send("There doesn't seem to be a repository linked to this channel. Type `!github help` to see the full list of "
+								+ "available commands.");
+						return;
+					}
+				
 					let contributors = JSON.parse((await _request('GET', "https://api.github.com/repos/" + repo + "/contributors", {
 						headers: { 
 							"User-Agent": "fennifith",
@@ -495,6 +495,21 @@ function start(params) {
 						timestamp: new Date()
 					}});
 					
+					return;
+				} else if (messageParts[2] == "auth") {
+					let fields = [];
+					for (let userId in _params.githubUsers) {
+						let field = await getGithubUserField(userId);
+						if (field)
+							fields.push(field);
+					}
+
+					await message.channel.send({ embed: {
+						title: "Authenticated Users",
+						fields: fields,
+						timestamp: new Date()
+					}});
+
 					return;
 				}
 			
