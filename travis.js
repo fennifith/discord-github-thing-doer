@@ -138,7 +138,7 @@ async function start(params) {
 					let color = 0xEDDE3F; // yellow
 
 					if (builds[i].state == "passed") {
-						message = "Build #" + builds[i].number + " passed! " + getUser(_user);
+						message = "Build #" + builds[i].number + " passed!";
 						color = 0x39AA56; // green
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
