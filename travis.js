@@ -75,6 +75,7 @@ async function travisRequest(url, method, payload) {
 }
 
 async function bintrayRequest(url, method, payload) {
+	console.log("bintray: " + url);
 	return _request(method || 'GET', "https://bintray.com/api/v1/" + url, {
 		headers: {
 			"User-Agent": "github.com/fennifith/discord-github-thing-doer",
@@ -92,6 +93,22 @@ function getUser(login) {
 	if (_params.githubUsers[login])
 		return "<@" + _params.githubUsers[login] + ">";
 	else return "@" + login;
+}
+
+async function getBintrayFiles(pkg, version, timeout) {
+	timeout = timeout || 100;
+
+	let files = await bintrayRequest("packages/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + pkg + "/versions/" + version + "/files");
+
+	if ((!files || files.length == 0) && timeout < 30000) {
+		return await new Promise((resolve, reject) => {
+			setTimeout(async function() {
+				resolve(await getBintrayFiles(pkg, version, timeout * 5));
+			}, timeout);
+		});
+	}
+
+	return files;
 }
 
 /**
@@ -126,9 +143,12 @@ async function start(params) {
 	if (bintrayUser)
 		console.log("Authenticated Bintray key of " + bintrayUser.full_name);
 
-	let builds = (await travisRequest("builds")).builds;
+	let builds = (await travisRequest("builds?sort_by=finished_at:desc")).builds;
 	for (let i in builds) {
 		_builds[builds[i].id] = builds[i].state;
+
+		if (builds[i].state == "ongoing")
+			console.log("Ongoing build: #" + builds[i].number + " of " + builds[i].repository.slug);
 	}
 
 	setInterval(async function() {
@@ -137,7 +157,8 @@ async function start(params) {
 			return;
 		}
 	
-		let builds = (await travisRequest("builds")).builds;
+		let builds = (await travisRequest("builds?sort_by=finished_at:desc")).builds;
+		
 		for (let i in builds) {
 			if (!_builds[builds[i].id] || _builds[builds[i].id] != builds[i].state) {
 				_builds[builds[i].id] = builds[i].state;
@@ -153,24 +174,21 @@ async function start(params) {
 				
 				if (channelId) {
 					let message = "Ongoing build: #" + builds[i].number + " [" + builds[i].state + "]";
-					let fields = [];
+					let attachments = [];
 					let color = 0xEDDE3F; // yellow
 
 					if (builds[i].state == "passed") {
 						message = "Build #" + builds[i].number + " passed!";
 						color = 0x39AA56; // green
 
-						let files = await bintrayRequest("packages/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + builds[i].repository.slug.split("/")[1]
-								+ "/versions/" + builds[i].commit.sha + "/files");
+						let files = await getBintrayFiles(builds[i].repository.slug.split("/")[1], builds[i].commit.sha);
 
 						if (files) {
-							for (let i in files) {
-								fields.push({
-									name: files[i].name,
-									url: "https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[i].path
-								});
+							console.log("Found some bintray files!", files);
+							for (let file in files) {
+								attachments.push("https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[file].path);
 							}
-						}
+						} else console.log("No bintray files found for build.");
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
 						color = 0xDB4545; // red
@@ -186,7 +204,7 @@ async function start(params) {
 							description: "Build status: " + builds[i].state + "\n"
 								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\" [" + builds[i].commit.sha.substring(0, 8) + "]\n" : "")
 								+ "Started by: " + getUser(builds[i].created_by.login),
-							fields: fields,
+							files: attachments,
 							timestamp: new Date()
 						}
 					});
