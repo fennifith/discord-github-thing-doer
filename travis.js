@@ -74,6 +74,20 @@ async function travisRequest(url, method, payload) {
 	});
 }
 
+async function bintrayRequest(url, method, payload) {
+	return _request(method || 'GET', "https://bintray.com/api/v1/" + url, {
+		headers: {
+			"User-Agent": "github.com/fennifith/discord-github-thing-doer",
+			"Authorization": "Basic " + Buffer.from(_params.bintraySubject + ":" + _params.bintrayKey).toString("base64")
+		},
+		json: payload
+	}).then(function(result) {
+		return JSON.parse(result.getBody('utf8'));
+	}).catch(async function(err) {
+		return null;
+	});
+}
+
 function getUser(login) {
 	if (_params.githubUsers[login])
 		return "<@" + _params.githubUsers[login] + ">";
@@ -108,6 +122,10 @@ async function start(params) {
 	console.log("Authenticated GitHub token of @" + _user);
 	console.log("Authenticated Travis token of @" + (await travisRequest("user")).login);
 
+	let bintrayUser = await bintrayRequest("users/" + _params.bintraySubject);
+	if (bintrayUser)
+		console.log("Authenticated Bintray key of " + bintrayUser.full_name);
+
 	let builds = (await travisRequest("builds")).builds;
 	for (let i in builds) {
 		_builds[builds[i].id] = builds[i].state;
@@ -135,11 +153,24 @@ async function start(params) {
 				
 				if (channelId) {
 					let message = "Ongoing build: #" + builds[i].number + " [" + builds[i].state + "]";
+					let fields = [];
 					let color = 0xEDDE3F; // yellow
 
 					if (builds[i].state == "passed") {
 						message = "Build #" + builds[i].number + " passed!";
 						color = 0x39AA56; // green
+
+						let files = await bintrayRequest("packages/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + builds[i].repository.slug.split("/")[1]
+								+ "/versions/" + builds[i].commit.sha + "/files");
+
+						if (files) {
+							for (let i in files) {
+								fields.push({
+									name: files[i].name,
+									url: "https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[i].path
+								});
+							}
+						}
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
 						color = 0xDB4545; // red
@@ -155,6 +186,7 @@ async function start(params) {
 							description: "Build status: " + builds[i].state + "\n"
 								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\" [" + builds[i].commit.sha.substring(0, 8) + "]\n" : "")
 								+ "Started by: " + getUser(builds[i].created_by.login),
+							fields: fields,
 							timestamp: new Date()
 						}
 					});

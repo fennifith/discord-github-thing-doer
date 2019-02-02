@@ -54,6 +54,9 @@ _travisBot.start({
 	client: _args.githubClient,
 	token: _args.githubToken,
 	travisToken: _args.travisToken,
+	bintraySubject: _args.bintraySubject,
+	bintrayRepo: _args.bintrayRepo,
+	bintrayKey: _args.bintrayKey,
 	githubUsers: _githubUsers,
 	githubRepos: _githubRepos,
 	bot: _args.discordTravisToken
