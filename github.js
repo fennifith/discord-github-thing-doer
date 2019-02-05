@@ -6,6 +6,7 @@ const _path = require('path');
 const _request = require('then-request');
 const _discord = require('discord.js');
 const _client = new _discord.Client();
+const _log = require('./log.js');
 
 var _params;
 var _guild;
@@ -101,11 +102,11 @@ async function linkRepo(message, repo, category) {
 	_params.githubRepos[channel.id] = repo.full_name;
 	if (_params.writeGithubRepos)
 		_params.writeGithubRepos(_params.githubRepos);
-	else console.error("Unimplemented method: writeGithubRepos(repos)");
+	else _log.error("Unimplemented method: writeGithubRepos(repos)");
 
 	if (category) {
 		await channel.setParent(category).catch(function(e) {
-			console.log(e);
+			_log.warn(e);
 		});
 	}
 						
@@ -168,12 +169,12 @@ async function authUser(message, userLogin) {
 	_params.githubUsers[userLogin] = message.author.id;
 	if (_params.writeGithubUsers)
 		_params.writeGithubUsers(_params.githubUsers);
-	else console.error("Unimplemented method: writeGithubUsers(users)");
+	else _log.error("Unimplemented method: writeGithubUsers(users)");
 
 	let authRole = _guild.roles.find(r => r.name == "github-auth");
 	let authMember = _guild.members.find(m => m.user.id == message.author.id);
 	if (authRole && authMember)
-		await authMember.addRole(authRole.id).catch(console.error);
+		await authMember.addRole(authRole.id).catch(_log.error);
 	else await message.channel.send("I was unable to verify that you are a member of the server this bot is from. @ the server mods if this continues to be an issue.");
 }
 
@@ -183,7 +184,7 @@ async function authUser(message, userLogin) {
  */
 async function log(message, type) {
 	if (typeof message === 'string')
-		console.log(message);
+		_log.debug(message);
 
 	if (_guild) {
 		let channel = _guild.channels.find(c => c.name == "thing-doers");

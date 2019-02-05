@@ -5,6 +5,7 @@ const _path = require('path');
 const _request = require('then-request');
 const _discord = require('discord.js');
 const _client = new _discord.Client();
+const _log = require('./log.js');
 
 var _params;
 var _guild;
@@ -75,7 +76,6 @@ async function travisRequest(url, method, payload) {
 }
 
 async function bintrayRequest(url, method, payload) {
-	console.log("bintray: " + url);
 	return _request(method || 'GET', "https://bintray.com/api/v1/" + url, {
 		headers: {
 			"User-Agent": "github.com/fennifith/discord-github-thing-doer",
@@ -116,7 +116,8 @@ async function getBintrayFiles(pkg, version, timeout) {
  * server as well as output it in the console.
  */
 async function log(message, type) {
-	console.log(message);
+	if (typeof message === 'string')
+		_log.debug(message);
 
 	if (_guild) {
 		let channel = _guild.channels.find(c => c.name == "thing-doers");
@@ -136,24 +137,24 @@ async function start(params) {
 	_params = params || {};
 
 	_user = (await githubRequest("user")).login;
-	console.log("Authenticated GitHub token of @" + _user);
-	console.log("Authenticated Travis token of @" + (await travisRequest("user")).login);
+	_log.info("Authenticated GitHub token of @" + _user);
+	_log.info("Authenticated Travis token of @" + (await travisRequest("user")).login);
 
 	let bintrayUser = await bintrayRequest("users/" + _params.bintraySubject);
 	if (bintrayUser)
-		console.log("Authenticated Bintray key of " + bintrayUser.full_name);
+		_log.info("Authenticated Bintray key of " + bintrayUser.full_name);
 
 	let builds = (await travisRequest("builds?sort_by=finished_at:desc")).builds;
 	for (let i in builds) {
 		_builds[builds[i].id] = builds[i].state;
 
 		if (builds[i].state == "ongoing")
-			console.log("Ongoing build: #" + builds[i].number + " of " + builds[i].repository.slug);
+			_log.debug("Ongoing build: #" + builds[i].number + " of " + builds[i].repository.slug);
 	}
 
 	setInterval(async function() {
 		if (!_guild) {
-			console.log("No point checking Travis builds; guild not initialized.");
+			_log.warn("No point checking Travis builds; guild not initialized.");
 			return;
 		}
 	
@@ -184,11 +185,11 @@ async function start(params) {
 						let files = await getBintrayFiles(builds[i].repository.slug.split("/")[1], builds[i].commit.sha);
 
 						if (files) {
-							console.log("Found some bintray files!", files);
+							_log.info("Found some bintray files!", files);
 							for (let file in files) {
 								attachments.push("https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[file].path);
 							}
-						} else console.log("No bintray files found for build.");
+						} else _log.error("No bintray files found for build.");
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
 						color = 0xDB4545; // red
