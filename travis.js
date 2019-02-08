@@ -98,11 +98,16 @@ function getUser(login) {
 async function getBintrayFiles(pkg, version, timeout) {
 	timeout = timeout || 100;
 
+	if (pkg == "Status")
+	    pkg = "Statuss"; // I don't know, Bintray doesn't like this word for some reason....
+	                     // I don't want to know why.
+
 	let files = await bintrayRequest("packages/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + pkg + "/versions/" + version + "/files");
 
 	if ((!files || files.length == 0) && timeout < 30000) {
 		return await new Promise((resolve, reject) => {
 			setTimeout(async function() {
+			    _log.warn("Requesting bintray files, timeout:", timeout);
 				resolve(await getBintrayFiles(pkg, version, timeout * 5));
 			}, timeout);
 		});
