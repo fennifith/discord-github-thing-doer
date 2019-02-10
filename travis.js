@@ -107,7 +107,7 @@ async function getBintrayFiles(pkg, version, timeout) {
 	if ((!files || files.length == 0) && timeout < 30000) {
 		return await new Promise((resolve, reject) => {
 			setTimeout(async function() {
-			    _log.warn("Requesting bintray files, timeout:", timeout);
+			    _log.warn("Requesting bintray files, timeout: " + timeout);
 				resolve(await getBintrayFiles(pkg, version, timeout * 5));
 			}, timeout);
 		});
@@ -192,7 +192,7 @@ async function start(params) {
 						if (files) {
 							_log.info("Found some bintray files!", files);
 							for (let file in files) {
-								attachments.push("https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[file].path);
+								attachments.push("[" + files[file].name + "](https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[file].path + ")");
 							}
 						} else _log.error("No bintray files found for build.");
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
@@ -204,13 +204,12 @@ async function start(params) {
 
 					_guild.channels.find(c => c.id === channelId).send(message, { 
 						embed: {
-							title: "Travis-CI Build #" + builds[i].number,
+							title: "Travis-CI Build #" + builds[i].number + " (" + builds[i].branch.name + ")",
 							url: "https://travis-ci.com/" + builds[i].repository.slug + "/builds/" + builds[i].id,
 							color: color,
 							description: "Build status: " + builds[i].state + "\n"
 								+ (builds[i].commit ? "Commit: \"" + builds[i].commit.message + "\" [" + builds[i].commit.sha.substring(0, 8) + "]\n" : "")
-								+ "Started by: " + getUser(builds[i].created_by.login),
-							files: attachments,
+								+ "Started by: " + getUser(builds[i].created_by.login) + (attachments.length > 0 ? "\nFiles: " + attachments.join(", ") : ""),
 							timestamp: new Date()
 						}
 					});
