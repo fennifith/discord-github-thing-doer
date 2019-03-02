@@ -126,16 +126,11 @@ async function linkRepo(message, repo, category) {
 		},
 		events: [
 			"commit_comment",
-			"create",
-			"delete",
 			"issue_comment",
 			"issues",
-			"page_build",
 			"pull_request",
 			"pull_request_review",
-			"pull_request_review_comment",
-			"push",
-			"release"
+			"pull_request_review_comment"
 		],
 		active: true
 	});
