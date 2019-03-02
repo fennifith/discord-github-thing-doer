@@ -10,7 +10,7 @@ set -e
 # should make another file in '/etc/discord-thing-doer.conf.sh'
 # to overwrite them.
 
-SOURCE_PATH = '~/js/discord-github-thing-doer/'
+SOURCE_PATH='~/js/discord-github-thing-doer/'
 GITHUB_CLIENT=''
 GITHUB_TOKEN=''
 TRAVIS_TOKEN=''
