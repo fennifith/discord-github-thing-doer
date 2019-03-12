@@ -164,6 +164,7 @@ async function start(params) {
 		}
 	
 		let builds = (await travisRequest("builds?sort_by=finished_at:desc")).builds;
+		let ongoing = [];
 		
 		for (let i in builds) {
 			if (!_builds[builds[i].id] || _builds[builds[i].id] != builds[i].state) {
@@ -195,10 +196,13 @@ async function start(params) {
 								attachments.push("[" + files[file].name + "](https://dl.bintray.com/" + _params.bintraySubject + "/" + _params.bintrayRepo + "/" + files[file].path + ")");
 							}
 						} else _log.error("No bintray files found for build.");
+
+						await _client.user.setActivity(null);
 					} else if (builds[i].state == "failed" || builds[i].state == "errored") {
 						message = "Failed build (#" + builds[i].number + ")... probably broken by " + getUser(_user) + ".";
 						color = 0xDB4545; // red
 					} else {
+					    ongoing.push(builds[i]);
 						continue;
 					}
 
@@ -215,6 +219,21 @@ async function start(params) {
 					});
 				}
 			}
+		}
+
+		if (ongoing.length > 0) {
+		    let str = "";
+		    for (let i = 0; i < ongoing.length; i++) {
+		        str += ongoing[i].repository.slug.split("/")[1];
+
+		        if (ongoing.length - i == 1)
+		            break;
+		        else if (ongoing.length - i == 2)
+		            str += ongoing.length > 2 ? ", and " : " and ";
+		        else str += ", ";
+		    }
+
+		    await _client.user.setActivity(str, { type: 'WATCHING' });
 		}
 	}, 10000);
 
